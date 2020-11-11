@@ -232,6 +232,12 @@ func (r *Reconciler) reconcileExists(ctx context.Context, name types.NamespacedN
 
 	extraArgs := []string{"--force"}
 
+	if r.options.kubectlConfig != "" {
+		cfg := fmt.Sprintf("--kubeconfig %s", r.options.kubectlConfig)
+		log.Info("adding kubeconfig before apply", cfg)
+		extraArgs = append(extraArgs, cfg)
+	}
+
 	if r.options.prune {
 		var labels []string
 		for k, v := range r.options.labelMaker(ctx, instance) {

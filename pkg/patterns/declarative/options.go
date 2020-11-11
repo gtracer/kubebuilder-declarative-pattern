@@ -47,6 +47,7 @@ type reconcilerParams struct {
 	kustomize         bool
 	validate          bool
 	metrics           bool
+	kubectlConfig 	  string
 
 	sink       Sink
 	ownerFn    OwnerSelector
@@ -116,6 +117,14 @@ func WithApplyPrune() reconcilerOption {
 func WithOwner(ownerFn OwnerSelector) reconcilerOption {
 	return func(p reconcilerParams) reconcilerParams {
 		p.ownerFn = ownerFn
+		return p
+	}
+}
+
+// WithConfigOverride overrides the kubeconfig for kubectl
+func WithConfigOverride(config string) reconcilerOption {
+	return func(p reconcilerParams) reconcilerParams {
+		p.kubectlConfig = config
 		return p
 	}
 }
