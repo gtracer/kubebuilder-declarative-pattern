@@ -75,7 +75,7 @@ type DeclarativeObject interface {
 }
 
 // For mocking
-var kubectl = applier.NewDirectApplier()
+var kubectl = applier.NewExec()
 
 func (r *Reconciler) Init(mgr manager.Manager, prototype DeclarativeObject, opts ...reconcilerOption) error {
 	r.prototype = prototype
