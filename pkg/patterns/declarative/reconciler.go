@@ -234,7 +234,7 @@ func (r *Reconciler) reconcileExists(ctx context.Context, name types.NamespacedN
 
 	if r.options.kubectlConfig != "" {
 		cfg := fmt.Sprintf("--kubeconfig %s", r.options.kubectlConfig)
-		log.Info("adding kubeconfig before apply", cfg)
+		log.Info("adding kubeconfig before apply", "cfg", cfg)
 		extraArgs = append(extraArgs, cfg)
 	}
 
