@@ -18,6 +18,7 @@ package declarative
 
 import (
 	"context"
+	"k8s.io/client-go/rest"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -47,6 +48,7 @@ type reconcilerParams struct {
 	kustomize         bool
 	validate          bool
 	metrics           bool
+	overlayConfig    *rest.Config
 	kubectlConfig 	  string
 
 	sink       Sink
@@ -145,6 +147,16 @@ func WithStatus(status Status) reconcilerOption {
 		return p
 	}
 }
+
+// WithOverlayConfig provides an overlay config
+func WithOverlayConfig(config *rest.Config) reconcilerOption {
+	return func(p reconcilerParams) reconcilerParams {
+		p.overlayConfig = config
+		return p
+	}
+}
+
+
 
 // WithPreserveNamespace preserves the namespaces defined in the deployment manifest
 // instead of matching the namespace of the DeclarativeObject

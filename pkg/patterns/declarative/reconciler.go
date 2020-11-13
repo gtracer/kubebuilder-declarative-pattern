@@ -48,7 +48,7 @@ import (
 
 var _ reconcile.Reconciler = &Reconciler{}
 
-type Reconciler struct {
+type Reconciler  struct {
 	prototype DeclarativeObject
 	client    client.Client
 	config    *rest.Config
@@ -58,10 +58,11 @@ type Reconciler struct {
 	mgr manager.Manager
 
 	// recorder is the EventRecorder for creating k8s events
-	recorder      recorder.EventRecorder
-	dynamicClient dynamic.Interface
+	recorder             recorder.EventRecorder
+	overlayDynamicClient dynamic.Interface
 
 	restMapper meta.RESTMapper
+	restMapperOverlay meta.RESTMapper
 	options    reconcilerParams
 }
 
@@ -90,12 +91,6 @@ func (r *Reconciler) Init(mgr manager.Manager, prototype DeclarativeObject, opts
 	r.mgr = mgr
 	globalObjectTracker.mgr = mgr
 
-	d, err := dynamic.NewForConfig(r.config)
-	if err != nil {
-		return err
-	}
-	r.dynamicClient = d
-
 	restMapper, err := apiutil.NewDiscoveryRESTMapper(r.config)
 	if err != nil {
 		return err
@@ -105,6 +100,18 @@ func (r *Reconciler) Init(mgr manager.Manager, prototype DeclarativeObject, opts
 	if err = r.applyOptions(opts...); err != nil {
 		return err
 	}
+
+	d, err := dynamic.NewForConfig(r.options.overlayConfig)
+	if err != nil {
+		return err
+	}
+	r.overlayDynamicClient = d
+
+	restMapperOverlay, err := apiutil.NewDiscoveryRESTMapper(r.config)
+	if err != nil {
+		return err
+	}
+	r.restMapperOverlay = restMapperOverlay
 
 	if err := r.validateOptions(); err != nil {
 		return err
@@ -125,6 +132,8 @@ func (r *Reconciler) Init(mgr manager.Manager, prototype DeclarativeObject, opts
 func (r *Reconciler) Reconcile(ctx context.Context, request reconcile.Request) (result reconcile.Result, err error) {
 	log := log.Log
 	defer r.collectMetrics(request, result, err)
+
+	log.Info("Ganesh", "reconcile.Request.Name", request.Name, "reconcile.Request.Namespace", request.Namespace)
 
 	// Fetch the object
 	instance := r.prototype.DeepCopyObject().(DeclarativeObject)
@@ -233,8 +242,8 @@ func (r *Reconciler) reconcileExists(ctx context.Context, name types.NamespacedN
 	extraArgs := []string{"--force"}
 
 	if r.options.kubectlConfig != "" {
-		cfg := fmt.Sprintf("--kubeconfig %s", r.options.kubectlConfig)
-		log.Info("adding kubeconfig before apply", "cfg", cfg)
+		cfg := fmt.Sprintf("--kubeconfig=%s", r.options.kubectlConfig)
+		log.Info("GANESH NEW: adding kubeconfig before apply", "cfg", cfg)
 		extraArgs = append(extraArgs, cfg)
 	}
 
@@ -574,17 +583,16 @@ func aggregateStatus(m map[status.Status]bool) status.Status {
 	return status.CurrentStatus
 }
 
-func GetObjectFromCluster(obj *manifest.Object, r *Reconciler) (*unstructured.
-	Unstructured, error) {
+func GetObjectFromCluster(obj *manifest.Object, r *Reconciler) (*unstructured.Unstructured, error) {
 	getOptions := metav1.GetOptions{}
 	gvk := obj.GroupVersionKind()
 
-	mapping, err := r.restMapper.RESTMapping(obj.GroupKind(), gvk.Version)
+	mapping, err := r.restMapperOverlay.RESTMapping(obj.GroupKind(), gvk.Version)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get resource: %v", err)
 	}
 	ns := obj.UnstructuredObject().GetNamespace()
-	unstruct, err := r.dynamicClient.Resource(mapping.Resource).Namespace(ns).Get(context.Background(),
+	unstruct, err := r.overlayDynamicClient.Resource(mapping.Resource).Namespace(ns).Get(context.Background(),
 		obj.Name, getOptions)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get mapping for resource: %v", err)

@@ -119,6 +119,7 @@ func (dw *dynamicWatch) watchUntilClosed(client dynamic.ResourceInterface, trigg
 
 	for clientEvent := range events.ResultChan() {
 		log.WithValues("type", clientEvent.Type).WithValues("kind", trigger.String()).Info("broadcasting event")
+		log.WithValues("ganesh type", clientEvent.Type).WithValues("kind", trigger.String()).Info("ganesh broadcasting event")
 		dw.events <- event.GenericEvent{Object: clientObject{Object: clientEvent.Object, ObjectMeta: &target}}
 	}
 
